@@ -133,7 +133,7 @@ a89615 & Sofia Santos
 \\
 a22222 & Rita Lino
 \\
-a33333 & Guilherme Fernandes
+a93216 & Guilherme Fernandes
 \end{tabular}
 \end{center}
 
@@ -1014,27 +1014,129 @@ ad :: Floating a => a -> ExpAr a -> a
 ad v = p2 . cataExpAr (ad_gen v)
 \end{code}
 Definir:
-
+\subsubsection*{outExpAr}
+-- TODO: Adicionar diagramas
 \begin{code}
-outExpAr = undefined
----
-recExpAr = undefined
----
-g_eval_exp = undefined
----
-clean = undefined
----
-gopt = undefined
+outExpAr X = i1 ()
+outExpAr (N x) = i2 $ i1 x
+outExpAr (Bin op a b) = i2 $ i2 $ i1 (op, (a, b))
+outExpAr (Un op a) = i2 $ i2 $ i2 (op, a)
 \end{code}
 
+\subsubsection*{recExpAr}
+\begin{code}
+recExpAr f = id -|- (id -|- (id >< (f >< f) -|- id >< f))
+\end{code}
+
+\subsubsection*{g\_eval\_exp}
+\begin{code}
+-- g_eval_exp x (Left ()) = x
+-- g_eval_exp _ (Right (Left x)) = x
+-- g_eval_exp _ (Right (Right (Left (op, (a, b))))) = binOpToFunc op a b
+--   where
+--     binOpToFunc Sum = (+)
+--     binOpToFunc Product = (*)
+-- g_eval_exp _ (Right (Right (Right (op, a)))) = unOpToFunc op a
+--   where
+--     unOpToFunc Negate = negate
+--     unOpToFunc E = expd
+
+g_eval_exp x = either (const x) (either id (either (uncurry binOp) (uncurry unOp)))
+  where
+    binOp Sum = uncurry (+)
+    binOp Product = uncurry (*)
+    unOp Negate = negate
+    unOp E = expd
+\end{code}
+
+\subsubsection*{clean}
+\begin{code}
+clean (Bin Sum (N 0) x) = clean x
+clean (Bin Sum x (N 0)) = clean x
+clean (Bin Product (N 0) _) = outExpAr (N 0)
+clean (Bin Product _ (N 0)) = outExpAr (N 0)
+clean (Bin Product (N 1) x) = clean x
+clean (Bin Product x (N 1)) = clean x
+clean (Un E (N 0)) = outExpAr (N 1)
+clean (Un Negate (Un Negate x)) = clean x
+clean x = outExpAr x
+\end{code}
+
+\subsubsection*{gopt}
+\begin{code}
+gopt _ (Right (Right (Left (Sum, (0, x))))) = x
+gopt _ (Right (Right (Left (Sum, (x, 0))))) = x
+gopt _ (Right (Right (Left (Product, (0, _))))) = 0
+gopt _ (Right (Right (Left (Product, (_, 0))))) = 0
+gopt _ (Right (Right (Left (Product, (1, x))))) = x
+gopt _ (Right (Right (Left (Product, (x, 1))))) = x
+gopt _ (Right (Right (Right (E, 0)))) = 1
+gopt a b = g_eval_exp a b
+\end{code}
+
+-- TODO: Qual é a vantagem de implementar a função optimize eval utilizando um hilomorfismo
+-- em vez de utilizar um catamorfismo com um gene ”inteligente”?
+
+\subsubsection*{sd\_gen}
 \begin{code}
 sd_gen :: Floating a =>
     Either () (Either a (Either (BinOp, ((ExpAr a, ExpAr a), (ExpAr a, ExpAr a))) (UnOp, (ExpAr a, ExpAr a)))) -> (ExpAr a, ExpAr a)
-sd_gen = undefined
+-- sd_gen (Left ()) = (X, N 1)
+-- sd_gen (Right (Left x)) = (N x, N 0)
+-- sd_gen (Right (Right (Left (op, (f, g))))) = (x, y)
+--   where
+--     x = Bin op (p1 f) (p1 g)
+--     y = case op of
+--       Sum -> Bin Sum (p2 f) (p2 g)
+--       _ -> Bin Sum (Bin Product (p1 f) (p2 g)) (Bin Product (p2 f) (p1 g))
+-- sd_gen (Right (Right (Right (op, a)))) = (x, y)
+--   where
+--     x = Un op (p1 a)
+--     y = case op of
+--       E -> Bin Product (Un E (p1 a)) (p2 a)
+--       _ -> Un Negate (p2 a)
+
+sd_gen = either (const (X, N 1)) (either n (either binOp unOp))
+  where
+    n a = (N a, N 0)
+    binOp (op, (f, g)) =
+      let x = Bin op (p1 f) (p1 g) in
+        case op of
+          Sum -> (x, Bin Sum (p2 f) (p2 g))
+          _ -> (x, Bin Sum (Bin Product (p1 f) (p2 g)) (Bin Product (p2 f) (p1 g)))
+    unOp (op, a) =
+      let x = Un op (p1 a) in
+        case op of
+          E -> (x, Bin Product (Un E (p1 a)) (p2 a))
+          _ -> (x, Un Negate (p2 a))
 \end{code}
 
+\subsubsection*{ad\_gen}
 \begin{code}
-ad_gen = undefined
+-- ad_gen x (Left ()) = (x, 1)
+-- ad_gen _ (Right (Left x)) = (x, 0)
+-- ad_gen _ (Right (Right (Left (op, (f, g))))) = (x, y)
+--   where
+--     (x, y) = case op of
+--       Sum -> (p1 f + p1 g, p2 f + p2 g)
+--       _ -> (p1 f * p1 g, p1 f * p2 g + p2 f * p1 g)
+-- ad_gen _ (Right (Right (Right (op, a)))) = (x, y)
+--   where
+--     (x, y) = case op of
+--       E -> (expd (p1 a), expd (p1 a) * p2 a)
+--       _ -> (negate (p1 a), negate (p2 a))
+
+ad_gen x = either (const (x, 1)) (either n (either binOp unOp))
+  where
+    n a = (a, 0)
+    binOp (op, (f, g)) =
+      case op of
+        Sum -> (p1 f + p1 g, p2 f + p2 g)
+        _ -> (p1 f * p1 g, p1 f * p2 g + p2 f * p1 g)
+    unOp (op, a) =
+      case op of
+        E -> (expd (p1 a), expd (p1 a) * p2 a)
+        _ -> (negate (p1 a), negate (p2 a))
 \end{code}
 
 \subsection*{Problema 2}
