@@ -1013,9 +1013,26 @@ sd = p2 . cataExpAr sd_gen
 ad :: Floating a => a -> ExpAr a -> a
 ad v = p2 . cataExpAr (ad_gen v)
 \end{code}
+
+Extras:
+\subsubsection*{Show}
+\begin{code}
+showExpAr :: Show a => ExpAr a -> String
+showExpAr = cataExpAr gene
+  where
+    gene = either (const "x") (either show (either showBinOp showUnOp))
+    showBinOp (Sum, (a, b)) = "(" ++ a ++ " + " ++ b ++ ")"
+    showBinOp (Product, (a, b)) = "(" ++ a ++ " * " ++ b ++ ")"
+    showUnOp (E, a) = "e^" ++ a
+    showUnOp (Negate, a) = "-" ++ a
+
+\end{code}
+
 Definir:
 \subsubsection*{outExpAr}
--- TODO: Adicionar diagramas
+
+% > -- TODO: Adicionar diagramas
+
 \begin{code}
 outExpAr X = i1 ()
 outExpAr (N x) = i2 $ i1 x
@@ -1028,19 +1045,23 @@ outExpAr (Un op a) = i2 $ i2 $ i2 (op, a)
 recExpAr f = id -|- (id -|- (id >< (f >< f) -|- id >< f))
 \end{code}
 
+%if False
+
+> -- g_eval_exp x (Left ()) = x
+> -- g_eval_exp _ (Right (Left x)) = x
+> -- g_eval_exp _ (Right (Right (Left (op, (a, b))))) = binOpToFunc op a b
+> --   where
+> --     binOpToFunc Sum = (+)
+> --     binOpToFunc Product = (*)
+> -- g_eval_exp _ (Right (Right (Right (op, a)))) = unOpToFunc op a
+> --   where
+> --     unOpToFunc Negate = negate
+> --     unOpToFunc E = expd
+
+%endif
+
 \subsubsection*{g\_eval\_exp}
 \begin{code}
--- g_eval_exp x (Left ()) = x
--- g_eval_exp _ (Right (Left x)) = x
--- g_eval_exp _ (Right (Right (Left (op, (a, b))))) = binOpToFunc op a b
---   where
---     binOpToFunc Sum = (+)
---     binOpToFunc Product = (*)
--- g_eval_exp _ (Right (Right (Right (op, a)))) = unOpToFunc op a
---   where
---     unOpToFunc Negate = negate
---     unOpToFunc E = expd
-
 g_eval_exp x = either (const x) (either id (either (uncurry binOp) (uncurry unOp)))
   where
     binOp Sum = uncurry (+)
@@ -1074,69 +1095,81 @@ gopt _ (Right (Right (Right (E, 0)))) = 1
 gopt a b = g_eval_exp a b
 \end{code}
 
--- TODO: Qual é a vantagem de implementar a função optimize eval utilizando um hilomorfismo
--- em vez de utilizar um catamorfismo com um gene ”inteligente”?
+%if False
+
+> -- TODO: Qual é a vantagem de implementar a função optimize eval utilizando um hilomorfismo
+> -- em vez de utilizar um catamorfismo com um gene ”inteligente”?
+
+> -- sd_gen (Left ()) = (X, N 1)
+> -- sd_gen (Right (Left x)) = (N x, N 0)
+> -- sd_gen (Right (Right (Left (op, (f, g))))) = (x, y)
+> --   where
+> --     x = Bin op (p1 f) (p1 g)
+> --     y = case op of
+> --       Sum -> Bin Sum (p2 f) (p2 g)
+> --       _ -> Bin Sum (Bin Product (p1 f) (p2 g)) (Bin Product (p2 f) (p1 g))
+> -- sd_gen (Right (Right (Right (op, a)))) = (x, y)
+> --   where
+> --     x = Un op (p1 a)
+> --     y = case op of
+> --       E -> Bin Product (Un E (p1 a)) (p2 a)
+> --       _ -> Un Negate (p2 a)
+
+%endif
 
 \subsubsection*{sd\_gen}
 \begin{code}
 sd_gen :: Floating a =>
-    Either () (Either a (Either (BinOp, ((ExpAr a, ExpAr a), (ExpAr a, ExpAr a))) (UnOp, (ExpAr a, ExpAr a)))) -> (ExpAr a, ExpAr a)
--- sd_gen (Left ()) = (X, N 1)
--- sd_gen (Right (Left x)) = (N x, N 0)
--- sd_gen (Right (Right (Left (op, (f, g))))) = (x, y)
---   where
---     x = Bin op (p1 f) (p1 g)
---     y = case op of
---       Sum -> Bin Sum (p2 f) (p2 g)
---       _ -> Bin Sum (Bin Product (p1 f) (p2 g)) (Bin Product (p2 f) (p1 g))
--- sd_gen (Right (Right (Right (op, a)))) = (x, y)
---   where
---     x = Un op (p1 a)
---     y = case op of
---       E -> Bin Product (Un E (p1 a)) (p2 a)
---       _ -> Un Negate (p2 a)
-
+    Either ()
+           (Either a
+                   (Either (BinOp, ((ExpAr a, ExpAr a), (ExpAr a, ExpAr a)))
+                           (UnOp, (ExpAr a, ExpAr a))))
+    -> (ExpAr a, ExpAr a)
 sd_gen = either (const (X, N 1)) (either n (either binOp unOp))
   where
     n a = (N a, N 0)
-    binOp (op, (f, g)) =
-      let x = Bin op (p1 f) (p1 g) in
+    binOp (op, ((f, f'), (g, g'))) =
+      let x = Bin op f g in
         case op of
-          Sum -> (x, Bin Sum (p2 f) (p2 g))
-          _ -> (x, Bin Sum (Bin Product (p1 f) (p2 g)) (Bin Product (p2 f) (p1 g)))
-    unOp (op, a) =
-      let x = Un op (p1 a) in
+          Sum -> (x, Bin Sum f' g')
+          _ -> (x, Bin Sum (Bin Product f g') (Bin Product f' g))
+    unOp (op, (f, f')) =
+      let x = Un op f in
         case op of
-          E -> (x, Bin Product (Un E (p1 a)) (p2 a))
-          _ -> (x, Un Negate (p2 a))
+          E -> (x, Bin Product (Un E f) f')
+          _ -> (x, Un Negate f')
 \end{code}
+
+%if False
+
+> -- ad_gen x (Left ()) = (x, 1)
+> -- ad_gen _ (Right (Left x)) = (x, 0)
+> -- ad_gen _ (Right (Right (Left (op, (f, g))))) = (x, y)
+> --   where
+> --     (x, y) = case op of
+> --       Sum -> (p1 f + p1 g, p2 f + p2 g)
+> --       _ -> (p1 f * p1 g, p1 f * p2 g + p2 f * p1 g)
+> -- ad_gen _ (Right (Right (Right (op, a)))) = (x, y)
+> --   where
+> --     (x, y) = case op of
+> --       E -> (expd (p1 a), expd (p1 a) * p2 a)
+> --       _ -> (negate (p1 a), negate (p2 a))
+
+%endif
 
 \subsubsection*{ad\_gen}
 \begin{code}
--- ad_gen x (Left ()) = (x, 1)
--- ad_gen _ (Right (Left x)) = (x, 0)
--- ad_gen _ (Right (Right (Left (op, (f, g))))) = (x, y)
---   where
---     (x, y) = case op of
---       Sum -> (p1 f + p1 g, p2 f + p2 g)
---       _ -> (p1 f * p1 g, p1 f * p2 g + p2 f * p1 g)
--- ad_gen _ (Right (Right (Right (op, a)))) = (x, y)
---   where
---     (x, y) = case op of
---       E -> (expd (p1 a), expd (p1 a) * p2 a)
---       _ -> (negate (p1 a), negate (p2 a))
-
 ad_gen x = either (const (x, 1)) (either n (either binOp unOp))
   where
     n a = (a, 0)
-    binOp (op, (f, g)) =
+    binOp (op, ((f, f'), (g, g'))) =
       case op of
-        Sum -> (p1 f + p1 g, p2 f + p2 g)
-        _ -> (p1 f * p1 g, p1 f * p2 g + p2 f * p1 g)
-    unOp (op, a) =
+        Sum -> (f + g, f' + g')
+        _ -> (f * g, f * g' + f' * g)
+    unOp (op, (f, f')) =
       case op of
-        E -> (expd (p1 a), expd (p1 a) * p2 a)
-        _ -> (negate (p1 a), negate (p2 a))
+        E -> (expd f, expd f * f')
+        _ -> (negate f, negate f')
 \end{code}
 
 \subsection*{Problema 2}
