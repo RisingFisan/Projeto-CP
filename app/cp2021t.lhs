@@ -1142,17 +1142,46 @@ ad_gen x = either (const (x, 1)) (either n (either binOp unOp))
 \subsection*{Problema 2}
 Definir
 \begin{code}
-loop = undefined
-inic = undefined
-prj = undefined
+inic = (1,2,2)
+loop(c,d,e) = (div (c * d) e, d + 4, e + 1)
+prj(c,d,e) = c
 \end{code}
 por forma a que
 \begin{code}
-cat = prj . (for loop inic)
+cat = prj . for loop inic
 \end{code}
 seja a função pretendida.
 \textbf{NB}: usar divisão inteira.
 Apresentar de seguida a justificação da solução encontrada.
+
+\bigskip
+
+A partir da fórmula \ref{eq:cat}, que dá o \textit{n}-ésimo número de Catalan,
+somos capazes de definir uma função $ c\ n = \frac{(2n)!}{(n+1)!(n!)}$. 
+Vemos facilmente que esta função pode ser definida recursivamente 
+por $c\ 0 = 1$ e $c\ (n + 1) = c\ n * \frac{2(2n+1)}{n+2}$. 
+Se definirmos $d\ n = 2(2n+1)$ e $e\ n = n + 2$, 
+obtemos as seguintes funções:
+
+\begin{code}
+c 0 = 1
+c (n + 1) = div (c n * d n) (e n)
+
+d 0 = 2
+d (n + 1) = d n + 4
+
+e 0 = 2
+e (n + 1) = e n + 1
+\end{code}
+
+Podemos agora aplicar a \textit{regra da algibeira} 
+descrita na página \ref{pg:regra} e definir as funções necessárias à 
+resolução do problema.
+
+\textbf{NB}: Como estamos a usar divisão inteira, é importante que 
+na função $c$ façamos a multiplicação antes da divisão. Caso contrário, 
+a função não dará valores corretos, pois irá arredondar o resultado da
+divisão.
 
 \subsection*{Problema 3}
 
