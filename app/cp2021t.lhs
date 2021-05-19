@@ -131,7 +131,7 @@
 \\\hline
 a89615 & Sofia Santos
 \\
-a22222 & Rita Lino
+a93196 & Rita Lino
 \\
 a93216 & Guilherme Fernandes
 \end{tabular}
