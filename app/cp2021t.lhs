@@ -1196,7 +1196,7 @@ por $c\ 0 = 1$ e $c\ (n + 1) = c\ n * \frac{2(2n+1)}{n+2}$.
 Se definirmos $d\ n = 2(2n+1)$ e $e\ n = n + 2$, 
 obtemos as seguintes funções:
 
-\begin{code}
+\begin{spec}
 c 0 = 1
 c (n + 1) = div (c n * d n) (e n)
 
@@ -1205,7 +1205,7 @@ d (n + 1) = d n + 4
 
 e 0 = 2
 e (n + 1) = e n + 1
-\end{code}
+\end{spec}
 
 Podemos agora aplicar a \textit{regra da algibeira} 
 descrita na página \ref{pg:regra} e definir as funções necessárias à 
@@ -1218,17 +1218,94 @@ divisão.
 
 \subsection*{Problema 3}
 
+Sabendo que $ calcLine = \cata{h} $, somos capazes de derivar a definição
+de $ h $ a partir da definição de $ calcLine $.
+
+\begin{eqnarray*}
+\start
+%
+        |lcbr(
+		calcLine [] = const nil
+	)(
+		calcLine (p : x) = curry g p (calcLine x)
+	)|
+%
+\just\equiv{ def-cons, def-nil, def-curry }
+%
+        |lcbr(
+		calcLine (nil x) = const nil
+	)(
+		calcLine (cons (p, x)) = g (p,(calcLine x))
+	)|
+%
+\just\equiv{ def-x }
+%
+        |lcbr(
+		calcLine (nil x) = const nil
+	)(
+		calcLine (cons (p, x)) = g ((id >< calcLine) (p, x))
+	)|
+%
+\just\equiv{ def-comp, def-const }
+%
+        |lcbr(
+		(calcLine . nil) x = (const (const nil)) x
+	)(
+		(calcLine . cons) (p, x) = (g . (id >< calcLine)) (p, x)
+	)|
+%
+\just\equiv{ igualdade extensional }
+%
+        |lcbr(
+		calcLine . nil = const (const nil)
+	)(
+		calcLine . cons = g . (id >< calcLine)
+	)|
+%
+\just\equiv{ eq-+ }
+%
+  |[calcLine . nil, calcLine . cons] = [const (const nil), g . (id >< calcLine)]|
+%
+\just\equiv{ fusão-+, absorção-+ }
+%
+  |calcLine . [nil, cons] = [const (const nil), g] . (id + id >< calcLine)|
+%
+\just\equiv{ universal-cata}
+%
+  |calcLine = cata [const (const nil), g] |
+%
+\just\equiv{ calcLine = $ \cata{h} $ }
+%
+  |h = [const (const nil), g]|
+\qed
+\end{eqnarray*}
+
+% `f xs` dá-nos o resultado de aplicar calcLine às caudas das duas listas introduzidas
+% `linear1d d x` calcula a interpolação linear das cabeças das listas
+% Visto que `f xs` é do tipo `OverTime NPoint` e `linear1d d x` é do tipo `OverTime Rational`, é necessário converter o segundo resultado para o tipo do 1º
+% Para isso, usamos a função `singl`
+% Depois, a função `sequenceA` converte uma lista de `OverTime NPoint` para um `OverTime [NPoint]`
+% Finalmente, o `concat` concatena a lista de `NPoint`, visto que isto é uma lista de listas, num simples `NPoint`
+% Temos agora o resultado pretendido, com o tipo `OverTime NPoint`
+
 \begin{code}
-calcLine :: NPoint -> (NPoint -> OverTime NPoint)
+calcLine :: NPoint -> NPoint -> OverTime NPoint
 calcLine = cataList h where
-   h = undefined
+  h = either (const (const nil)) g
+  g :: (Rational,NPoint -> OverTime NPoint) -> NPoint -> OverTime NPoint
+  g (d,f) l = case l of
+    [] -> nil
+    (x:xs) -> concat . sequenceA [singl . linear1d d x, f xs]
 
 deCasteljau :: [NPoint] -> OverTime NPoint
-deCasteljau = hyloAlgForm alg coalg where
-   coalg = undefined
-   alg = undefined
+deCasteljau [] = const []
+deCasteljau l = hyloAlgForm alg coalg l where
+   coalg [p] = i1 p
+   coalg l = i2 (init l, tail l)
+   alg = either const mergeL
+   mergeL (l, m) = \t -> calcLine (l t) (m t) t
 
-hyloAlgForm = undefined
+hyloAlgForm = hyloLTree
 \end{code}
 
 \subsection*{Problema 4}
