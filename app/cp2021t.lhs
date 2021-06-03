@@ -1309,11 +1309,64 @@ hyloAlgForm = hyloLTree
 \end{code}
 
 \subsection*{Problema 4}
-
+Tendo que | cata (either b q) = split avg length |, geram-se os diagramas
+de $ avg $ e de $ split $ para se poder recorrer à recursividade mútua.
+\\
+\\
 Solução para listas não vazias:
+
+\start
+	|cata (either b q) = (split avg length)|
+
+%
+\just\equiv{ universal cata }
+
+%
+  |split avg length = (either b q) . fF (split avg length)|
+%
+
+\qed
+\end{eqnarray*}
+
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    A^{+} 
+           \ar[d]_-{|avg|}      
+           \ar@@/^/[r]^-{|outT|}_-\cong
+&
+    |A + A ><| A^{+}
+           \ar[d]^{|id + id >< split avg length |} 
+           \ar@@/^/[l]^-{|inT|}    
+\\
+     |A|
+&
+     |A + A >< (A >< B)|
+           \ar[l]^-{|either id f |}
+}
+&
+\xymatrix@@C=2cm{
+    A^{+} 
+           \ar[d]_-{length}      
+           \ar@@/^/[r]^-{|outT|}_-\cong
+&
+    |A + A ><| A^{+}
+           \ar[d]^{|id + id >< split avg length |} 
+           \ar@@/^/[l]^-{|inT|}    
+\\
+     |A|
+&
+     |A + A >< (A >< B)|
+           \ar[l]^-{|either (const 1) (succ . p2 . p2 |}
+}
+\end{eqnarray*}
+
 \begin{code}
 avg = p1.avg_aux
 \end{code}
+
+
+
 
 \begin{code}
 avg_aux = undefined
