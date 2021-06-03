@@ -1296,7 +1296,23 @@ calcLine = cataList h where
   g (d,f) l = case l of
     [] -> nil
     (x:xs) -> concat . sequenceA [singl . linear1d d x, f xs]
+\end{code}
 
+Pela análise da definição do algoritmo de \textit{De Casteljau} fornecida, vemos que esta divide a lista que lhe é dada nos seus elementos constituintes,
+fazendo depois \textit{merge} destes elementos usando a função \texttt{calcLine}. Podemos assim concluir que o hilomorfismo a definir terá
+como estrutura intermédia uma LTree, onde cada folha representa um NPoint, obtido após N divisões da lista inicial. É fácil de verificar que este
+algoritmo é bastante semelhante ao conhecido \textit{merge sort}, cujo hilomorfismo também usa uma LTree como estrutura intermédia.
+
+Assim, o anamorfismo \texttt{coalg} deverá formar uma LTree a partir da lista de \textit{input}, usando o mesmo método que a definição fornecida para
+o algoritmo, ou seja, "enviando" para o ramo esquerdo a lista sem o último valor e para o ramo direito a lista sem o primeiro valor. Se a lista apenas tiver um valor,
+criamos uma folha com esse valor.
+
+Por outro lado, o catamorfismo \texttt{alg} deverá, para cada elemento da LTree, juntar os seus dois ramos. Se o elemento for uma folha, devolve-a envolvida
+num \texttt{const}, já que o catamorfismo deve devolver algo do tipo \texttt{OverTime NPoint}, e um NPoint não se altera com o tempo, logo vai ser constante.
+
+Temos assim uma definição para o hilomorfismo, apresentada a seguir:
+
+\begin{code}
 deCasteljau :: [NPoint] -> OverTime NPoint
 deCasteljau [] = const []
 deCasteljau l = hyloAlgForm alg coalg l where
