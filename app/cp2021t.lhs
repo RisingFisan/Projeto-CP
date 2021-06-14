@@ -700,7 +700,7 @@ Verifique as suas funções testando a propriedade seguinte:
 A média de uma lista não vazia e de uma \LTree\ com os mesmos elementos coincide,
 a menos de um erro de 0.1 milésimas:
 \begin{code}
-prop_avg :: Ord a => [a] -> Property
+--prop_avg :: Ord a => [a] -> Property
 prop_avg = nonempty .==>. diff .<=. const 0.000001 where
    diff l = avg l - (avgLTree . genLTree) l
    genLTree = anaLTree lsplit
@@ -1318,6 +1318,7 @@ Solução para listas não vazias:
 \start
 	|cata (either b q) = (split avg length)|
 
+
 %
 \just\equiv{ universal cata }
 
@@ -1341,7 +1342,7 @@ Solução para listas não vazias:
 \\
      |A|
 &
-     |A + A >< (A >< B)|
+     |A + A >< (A >< Nat0)|
            \ar[l]^-{|either id f |}
 }
 &
@@ -1354,9 +1355,9 @@ Solução para listas não vazias:
            \ar[d]^{|id + id >< split avg length |} 
            \ar@@/^/[l]^-{|inT|}    
 \\
-     |A|
+     |Nat0|
 &
-     |A + A >< (A >< B)|
+     |A + A >< (A >< Nat0)|
            \ar[l]^-{|either (const 1) (succ . p2 . p2 |}
 }
 \end{eqnarray*}
@@ -1369,12 +1370,62 @@ avg = p1.avg_aux
 
 
 \begin{code}
-avg_aux = undefined
+recL f = id -|- id >< f
+
+outL [a] = i1 a
+outL (a:l) = i2 (a, l)
+
+inL = either singl cons
+
+cataL g = g . recL (cataL g) . outL
+
+avg_aux = cataL $ either b q
+
+  where
+    b = split id (const 1)
+    q = split f (succ . p2 . p2)
+    f (a, (avg, k)) = (a + k * avg) / (k + 1)
 \end{code}
 Solução para árvores de tipo \LTree:
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    LTree A 
+           \ar[d]_-{|avg|}      
+           \ar@@/^/[r]^-{|outT|}_-\cong
+&
+    |A +| (LTree A)^{2}  
+           \ar[d]^{|id + (split avg length)|^{2}} 
+           \ar@@/^/[l]^-{|inT|}    
+\\
+     |A|
+&
+     |A + A >< (A >< Nat0)|
+           \ar[l]^-{|either id h |}
+}
+&
+\xymatrix@@C=2cm{
+    LTree A 
+           \ar[d]_-{length}      
+           \ar@@/^/[r]^-{|outT|}_-\cong
+&
+    |A +| (LTree A)^{2}
+           \ar[d]^{|id + (split avg length)|^{2}} 
+           \ar@@/^/[l]^-{|inT|}    
+\\
+     |Nat0|
+&
+     |A + A >< (A >< Nat0)|
+           \ar[l]^-{|either (const 1) k |}
+}
+\end{eqnarray*}
+
 \begin{code}
 avgLTree = p1.cataLTree gene where
-   gene = undefined
+   gene = either b q
+    where
+      b = split id (const 1)
+      q ((a1, l1), (a2, l2)) = ((a1 * l1 + a2 * l2) / (l1 + l2), l1 + l2)
 \end{code}
 
 \subsection*{Problema 5}
