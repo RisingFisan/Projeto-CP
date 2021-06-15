@@ -1181,6 +1181,9 @@ g_eval_exp x = either (const x) (either id (either (uncurry binOp) (uncurry unOp
 % TODO: Qual é a vantagem de implementar a função optimize eval utilizando um hilomorfismo
 % em vez de utilizar um catamorfismo com um gene ”inteligente”?
 
+\textbf{NB}: Esta função não passa nalguns testes do |quickCheck|, uma vez que a |eval_exp| nalguns casos dá |NaN|,
+enquanto que a |optmize_eval| não.
+
 \subsubsection*{clean}
 \begin{code}
 clean (Bin Sum (N 0) x) = outExpAr x
@@ -1542,20 +1545,20 @@ let outBTree x =
 
 \subsubsection*{Ana + cata + hylo}
 \begin{verbatim}
-let baseBTree f g = id -|- (f >< (g >< g))
+let baseBTree f g x = (id -|- (f >< (g >< g))) x
 
-let recBTree g = baseBTree id g
+let recBTree g x = (baseBTree id g) x
 
-let rec cataBTree g = g << (recBTree (cataBTree g)) << outBTree
+let rec cataBTree g x = (g << (recBTree (cataBTree g)) << outBTree) x
 
-let rec anaBTree g = inBTree << (recBTree (anaBTree g) ) << g
+let rec anaBTree g x = (inBTree << (recBTree (anaBTree g) ) << g) x
 
-let hyloBTree f g = cataBTree f << anaBTree g
+let hyloBTree f g x = (cataBTree f << anaBTree g) x
 \end{verbatim}
 
 \subsubsection*{Map}
 \begin{verbatim}
-let fmap f = cataBTree (inBTree << baseBTree f id)
+let fmap f x = cataBTree (inBTree << baseBTree f id) x
 \end{verbatim}
 
 \subsubsection*{Examples}

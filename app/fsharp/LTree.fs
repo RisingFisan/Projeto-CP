@@ -81,7 +81,7 @@ let dsq' n =
 let dsq n =
      match n with
      | 0 -> 0
-     | otherwise -> 
+     | otherwise ->
           let nthodd n = 2*n - 1
           let fdfacd f (n,m) = if n = m then i1 (f n) else let k = (n+m) / 2 in i2 ((n,k),(k+1,m))
           (hyloLTree (either id add) (fdfacd nthodd)) (1,n)
@@ -90,7 +90,7 @@ let dsq n =
 
 let fibd n = if n < 2 then i1 () else i2 (n-1, n-2)
 
-let fib =  hyloLTree (either one add) fibd
+let fib n =  hyloLTree (either one add) fibd n
 
 // (4.6) Merge sort ------------------------------------------------------------
 
@@ -167,7 +167,7 @@ mu  =  cataLTree (either id Fork)
 tnat :: Monoid c => (a -> c) -> Either a (c, c) -> c
 tnat f = either f (uncurry mappend)
 
--- monoid reduction 
+-- monoid reduction
 
 monLTree f = cataLTree (tnat f)
 
@@ -192,7 +192,7 @@ type Zipper a = [ Deriv a ]
 
 plug :: Zipper a -> LTree a -> LTree a
 plug [] t = t
-plug ((Dr False l):z) t = Fork (plug z t,l) 
+plug ((Dr False l):z) t = Fork (plug z t,l)
 plug ((Dr True  r):z) t = Fork (r,plug z t)
 
 -- (8) Advanced --------------------------------------------------------------

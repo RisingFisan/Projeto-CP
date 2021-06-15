@@ -17,19 +17,19 @@ let outBTree x =
 
 // (2) Ana + cata + hylo -------------------------------------------------------
 
-let baseBTree f g = id -|- (f >< (g >< g))
+let baseBTree f g x = (id -|- (f >< (g >< g))) x
 
-let recBTree g = baseBTree id g
+let recBTree g x = (baseBTree id g) x
 
-let rec cataBTree g = g << (recBTree (cataBTree g)) << outBTree
+let rec cataBTree g x = (g << (recBTree (cataBTree g)) << outBTree) x
 
-let rec anaBTree g = inBTree << (recBTree (anaBTree g) ) << g
+let rec anaBTree g x = (inBTree << (recBTree (anaBTree g) ) << g) x
 
-let hyloBTree f g = cataBTree f << anaBTree g
+let hyloBTree f g x = (cataBTree f << anaBTree g) x
 
 // (3) Map ---------------------------------------------------------------------
 
-let fmap f = cataBTree (inBTree << baseBTree f id)
+let fmap f x = cataBTree (inBTree << baseBTree f id) x
 
 // (4) Examples ----------------------------------------------------------------
 
@@ -84,7 +84,7 @@ let qsep l =
   match l with
     | [] -> i1 ()
     | (h :: t) ->
-      let (s, l) = part ((<) h) t
+      let (s, l) = part ((>) h) t
       in i2 (h, (s, l))
 
 let qSort x = hyloBTree inord qsep x
