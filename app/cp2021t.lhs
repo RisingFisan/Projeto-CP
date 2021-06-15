@@ -700,7 +700,7 @@ Verifique as suas funções testando a propriedade seguinte:
 A média de uma lista não vazia e de uma \LTree\ com os mesmos elementos coincide,
 a menos de um erro de 0.1 milésimas:
 \begin{code}
---prop_avg :: Ord a => [a] -> Property
+prop_avg :: [Double] -> Property
 prop_avg = nonempty .==>. diff .<=. const 0.000001 where
    diff l = avg l - (avgLTree . genLTree) l
    genLTree = anaLTree lsplit
@@ -1014,53 +1014,135 @@ ad :: Floating a => a -> ExpAr a -> a
 ad v = p2 . cataExpAr (ad_gen v)
 \end{code}
 
-Extras:
-\subsubsection*{Show}
-\begin{code}
-showExpAr :: Show a => ExpAr a -> String
-showExpAr = cataExpAr gene
-  where
-    gene = either (const "x") (either show (either showBinOp showUnOp))
-    showBinOp (Sum, (a, b)) = "(" ++ a ++ " + " ++ b ++ ")"
-    showBinOp (Product, (a, b)) = "(" ++ a ++ " * " ++ b ++ ")"
-    showUnOp (E, a) = "e^" ++ a
-    showUnOp (Negate, a) = "-" ++ a
-
-\end{code}
-
-Definir:
 \subsubsection*{outExpAr}
-
-% > -- TODO: Adicionar diagramas
-
+\begin{eqnarray*}
+\start
+  |out . in = id|
+%
+\just\equiv{|in = either (const X) num_ops|, fusão-+}
+%
+  |either (out . const X) (out . num_ops) = id|
+%
+\just\equiv{universal-+, natural-id}
+%
+  |lcbr(
+        out . const X = i1
+  )(
+        out . num_ops = i2
+  )|
+%
+\just\equiv{|num_ops = either N ops|, fusão-+}
+%
+  |lcbr(
+        out . const X = i1
+  )(
+        either (out . N) (out . ops) = i2
+  )|
+%
+\just\equiv{universal-+}
+%
+  |lcbr(
+        out . const X = i1
+  )(
+        lcbr(
+             out . N = i2 . i1
+        )(
+             out . ops = i2 . i2
+        )
+  )|
+%
+\just\equiv{|ops = either bin (uncurry Un)|, fusão-+}
+%
+  |lcbr(
+        out . const X = i1
+  )(
+        lcbr(
+             out . N = i2 . i1
+        )(
+             either (out . bin) (uncurry Un) = i2 . i2
+        )
+  )|
+%
+\just\equiv{universal-+}
+%
+  |lcbr(
+        out . const X = i1
+  )(
+        lcbr(
+             out . N = i2 . i1
+        )(
+             lcbr(
+                  out . bin = i2 . i2 . i1
+             )(
+                  out . uncurry Un = i2 . i2 . i2
+             )
+        )
+  )|
+%
+\just\equiv{pointwise, def-comp}
+%
+  |lcbr(
+        out (const X x) = i1 x
+  )(
+        lcbr(
+             out (N x) = i2 (i1 x)
+        )(
+             lcbr(
+                  out (bin (op, (a, b))) = i2 (i2 (i1 (op, (a, b))))
+             )(
+                  out (uncurry Un (op, a)) = (i2 (i2 (i2 (op, a))))
+             )
+        )
+  )|
+%
+\just\equiv{def-const, |bin (op, (a, b)) = Bin op a b|, uncurry}
+%
+  |lcbr(
+        out X = i1 ()
+  )(
+        lcbr(
+             out (N x) = i2 (i1 x)
+        )(
+             lcbr(
+                  out (Bin op a b) = i2 (i2 (i1 (op, (a, b))))
+             )(
+                  out (Un op a) = (i2 (i2 (i2 (op, a))))
+             )
+        )
+  )|
+\qed
+\end{eqnarray*}
+\\
 \begin{code}
 outExpAr X = i1 ()
-outExpAr (N x) = i2 $ i1 x
-outExpAr (Bin op a b) = i2 $ i2 $ i1 (op, (a, b))
-outExpAr (Un op a) = i2 $ i2 $ i2 (op, a)
+outExpAr (N x) = (i2 . i1) x
+outExpAr (Bin op a b) = (i2 . i2 . i1) (op, (a, b))
+outExpAr (Un op a) = (i2 . i2 . i2) (op, a)
 \end{code}
 
 \subsubsection*{recExpAr}
 \begin{code}
-recExpAr f = id -|- (id -|- (id >< (f >< f) -|- id >< f))
+recExpAr f = baseExpAr id id id f f id f
 \end{code}
 
-%if False
-
-> -- g_eval_exp x (Left ()) = x
-> -- g_eval_exp _ (Right (Left x)) = x
-> -- g_eval_exp _ (Right (Right (Left (op, (a, b))))) = binOpToFunc op a b
-> --   where
-> --     binOpToFunc Sum = (+)
-> --     binOpToFunc Product = (*)
-> -- g_eval_exp _ (Right (Right (Right (op, a)))) = unOpToFunc op a
-> --   where
-> --     unOpToFunc Negate = negate
-> --     unOpToFunc E = expd
-
-%endif
-
 \subsubsection*{g\_eval\_exp}
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+    |ExpAr A|
+           \ar[d]_-{|eval_exp a|}
+           \ar@@/^/[r]^-{|outT|}_-\cong
+&
+    |1 + (A + ((BinOp >< (ExpAr A)|^2| + UnOp >< ExpAr A))|
+           \ar[d]^{|id + (id + (id >< (eval_exp a)|^2| + id >< (eval_exp a)))|}
+           \ar@@/^/[l]^-{|inT|}
+\\
+     |A|
+&
+     |1 + (A + (BinOp >< A|^2| + Unop >< A))|
+           \ar[l]^-{|g_eval_exp a|}
+}
+\end{eqnarray*}
+
 \begin{code}
 g_eval_exp x = either (const x) (either id (either (uncurry binOp) (uncurry unOp)))
   where
@@ -1070,16 +1152,45 @@ g_eval_exp x = either (const x) (either id (either (uncurry binOp) (uncurry unOp
     unOp E = expd
 \end{code}
 
+\subsubsection*{hyloExpAr}
+
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+   |ExpAr A|
+          \ar[d]_-{\ana{clean}}
+           \ar[r]^-{|clean|}
+&
+   | + ( A + (BinOp >< (ExpAr A)|^2| + UnOp >< ExpAr A))|
+          \ar[d]^{|id + (id + (id >< |\ana{|clean|}^2| + |\ana{|id >< clean|})}
+\\
+    |ExpAr A|
+          \ar[d]_-{|cata (gopt a)|}
+           \ar[r]^-{|inExpAr|}
+&
+   |1 + (A + (BinOp >< (ExpAr A)|^2| + UnOp >< ExpAr A))|
+          \ar[l]^-{|outExpAr|}
+          \ar[d]^{|id + (id + (id >< (cata (gopt a))|^2| + id >< cata (gopt a))|}
+\\
+    |A|
+&
+   |1 + (A + (BinOp >< A|^2| + UnOp >< A))|
+          \ar[l]^-{|gopt a|}
+}
+\end{eqnarray*}
+
+% TODO: Qual é a vantagem de implementar a função optimize eval utilizando um hilomorfismo
+% em vez de utilizar um catamorfismo com um gene ”inteligente”?
+
 \subsubsection*{clean}
 \begin{code}
-clean (Bin Sum (N 0) x) = clean x
-clean (Bin Sum x (N 0)) = clean x
+clean (Bin Sum (N 0) x) = outExpAr x
+clean (Bin Sum x (N 0)) = outExpAr x
 clean (Bin Product (N 0) _) = outExpAr (N 0)
 clean (Bin Product _ (N 0)) = outExpAr (N 0)
-clean (Bin Product (N 1) x) = clean x
-clean (Bin Product x (N 1)) = clean x
+clean (Bin Product (N 1) x) = outExpAr x
+clean (Bin Product x (N 1)) = outExpAr x
 clean (Un E (N 0)) = outExpAr (N 1)
-clean (Un Negate (Un Negate x)) = clean x
+clean (Un Negate (Un Negate x)) = outExpAr x
 clean x = outExpAr x
 \end{code}
 
@@ -1092,30 +1203,9 @@ gopt _ (Right (Right (Left (Product, (_, 0))))) = 0
 gopt _ (Right (Right (Left (Product, (1, x))))) = x
 gopt _ (Right (Right (Left (Product, (x, 1))))) = x
 gopt _ (Right (Right (Right (E, 0)))) = 1
+gopt _ (Right (Right (Right (Negate, 0)))) = 0
 gopt a b = g_eval_exp a b
 \end{code}
-
-%if False
-
-> -- TODO: Qual é a vantagem de implementar a função optimize eval utilizando um hilomorfismo
-> -- em vez de utilizar um catamorfismo com um gene ”inteligente”?
-
-> -- sd_gen (Left ()) = (X, N 1)
-> -- sd_gen (Right (Left x)) = (N x, N 0)
-> -- sd_gen (Right (Right (Left (op, (f, g))))) = (x, y)
-> --   where
-> --     x = Bin op (p1 f) (p1 g)
-> --     y = case op of
-> --       Sum -> Bin Sum (p2 f) (p2 g)
-> --       _ -> Bin Sum (Bin Product (p1 f) (p2 g)) (Bin Product (p2 f) (p1 g))
-> -- sd_gen (Right (Right (Right (op, a)))) = (x, y)
-> --   where
-> --     x = Un op (p1 a)
-> --     y = case op of
-> --       E -> Bin Product (Un E (p1 a)) (p2 a)
-> --       _ -> Un Negate (p2 a)
-
-%endif
 
 \subsubsection*{sd\_gen}
 \begin{code}
@@ -1132,36 +1222,18 @@ sd_gen = either (const (X, N 1)) (either n (either binOp unOp))
       let x = Bin op f g in
         case op of
           Sum -> (x, Bin Sum f' g')
-          _ -> (x, Bin Sum (Bin Product f g') (Bin Product f' g))
+          Product -> (x, Bin Sum (Bin Product f g') (Bin Product f' g))
     unOp (op, (f, f')) =
       let x = Un op f in
         case op of
           E -> (x, Bin Product (Un E f) f')
-          _ -> (x, Un Negate f')
+          Negate -> (x, Un Negate f')
 \end{code}
-
-%if False
-
-> -- ad_gen x (Left ()) = (x, 1)
-> -- ad_gen _ (Right (Left x)) = (x, 0)
-> -- ad_gen _ (Right (Right (Left (op, (f, g))))) = (x, y)
-> --   where
-> --     (x, y) = case op of
-> --       Sum -> (p1 f + p1 g, p2 f + p2 g)
-> --       _ -> (p1 f * p1 g, p1 f * p2 g + p2 f * p1 g)
-> -- ad_gen _ (Right (Right (Right (op, a)))) = (x, y)
-> --   where
-> --     (x, y) = case op of
-> --       E -> (expd (p1 a), expd (p1 a) * p2 a)
-> --       _ -> (negate (p1 a), negate (p2 a))
-
-%endif
 
 \subsubsection*{ad\_gen}
 \begin{code}
-ad_gen x = either (const (x, 1)) (either n (either binOp unOp))
+ad_gen x = either (const (x, 1)) (either (split id (fromInteger . zero)) (either binOp unOp))
   where
-    n a = (a, 0)
     binOp (op, ((f, f'), (g, g'))) =
       case op of
         Sum -> (f + g, f' + g')
@@ -1170,6 +1242,18 @@ ad_gen x = either (const (x, 1)) (either n (either binOp unOp))
       case op of
         E -> (expd f, expd f * f')
         _ -> (negate f, negate f')
+\end{code}
+
+\subsubsection*{show}
+\begin{code}
+showExpAr :: Show a => ExpAr a -> String
+showExpAr = cataExpAr gene
+  where
+    gene = either (const "x") (either show (either showBinOp showUnOp))
+    showBinOp (Sum, (a, b)) = "(" ++ a ++ " + " ++ b ++ ")"
+    showBinOp (Product, (a, b)) = "(" ++ a ++ " * " ++ b ++ ")"
+    showUnOp (E, a) = "e^" ++ a
+    showUnOp (Negate, a) = "(-" ++ a ++ ")"
 \end{code}
 
 \subsection*{Problema 2}
@@ -1190,10 +1274,10 @@ Apresentar de seguida a justificação da solução encontrada.
 \bigskip
 
 A partir da fórmula \ref{eq:cat}, que dá o \textit{n}-ésimo número de Catalan,
-somos capazes de definir uma função $ c\ n = \frac{(2n)!}{(n+1)!(n!)}$. 
-Vemos facilmente que esta função pode ser definida recursivamente 
-por $c\ 0 = 1$ e $c\ (n + 1) = c\ n * \frac{2(2n+1)}{n+2}$. 
-Se definirmos $d\ n = 2(2n+1)$ e $e\ n = n + 2$, 
+somos capazes de definir uma função $ c\ n = \frac{(2n)!}{(n+1)!(n!)}$.
+Vemos facilmente que esta função pode ser definida recursivamente
+por $c\ 0 = 1$ e $c\ (n + 1) = c\ n * \frac{2(2n+1)}{n+2}$.
+Se definirmos $d\ n = 2(2n+1)$ e $e\ n = n + 2$,
 obtemos as seguintes funções:
 
 \begin{spec}
@@ -1207,12 +1291,12 @@ e 0 = 2
 e (n + 1) = e n + 1
 \end{spec}
 
-Podemos agora aplicar a \textit{regra da algibeira} 
-descrita na página \ref{pg:regra} e definir as funções necessárias à 
+Podemos agora aplicar a \textit{regra da algibeira}
+descrita na página \ref{pg:regra} e definir as funções necessárias à
 resolução do problema.
 
-\textbf{NB}: Como estamos a usar divisão inteira, é importante que 
-na função $c$ façamos a multiplicação antes da divisão. Caso contrário, 
+\textbf{NB}: Como estamos a usar divisão inteira, é importante que
+na função $c$ façamos a multiplicação antes da divisão. Caso contrário,
 a função não dará valores corretos, pois irá arredondar o resultado da
 divisão.
 
@@ -1308,7 +1392,7 @@ o algoritmo, ou seja, "enviando" para o ramo esquerdo a lista sem o último valo
 criamos uma folha com esse valor.
 
 Por outro lado, o catamorfismo \texttt{alg} deverá, para cada elemento da LTree, juntar os seus dois ramos usando a função \texttt{calcLine} que definimos acima.
-Se este elemento for uma folha, visto que não tem ramos, o catamorfismo devolve-a envolvida num \texttt{const}, já que deve devolver algo do tipo 
+Se este elemento for uma folha, visto que não tem ramos, o catamorfismo devolve-a envolvida num \texttt{const}, já que deve devolver algo do tipo
 \texttt{OverTime NPoint} e um único NPoint (o valor armazenado na folha) não irá sofrer alterações com o tempo, logo terá que ser constante.
 
 Temos assim uma definição para o hilomorfismo, apresentada a seguir:
@@ -1332,30 +1416,28 @@ de $ avg $ e de $ split $ para se poder recorrer à recursividade mútua.
 \\
 Solução para listas não vazias:
 
+\begin{eqnarray*}
 \start
+%
 	|cata (either b q) = (split avg length)|
-
-
 %
 \just\equiv{ universal cata }
-
 %
   |split avg length = (either b q) . fF (split avg length)|
 %
-
 \qed
 \end{eqnarray*}
 
 
 \begin{eqnarray*}
 \xymatrix@@C=2cm{
-    A^{+} 
-           \ar[d]_-{|avg|}      
+    |A|^{+}
+           \ar[d]_-{|avg|}
            \ar@@/^/[r]^-{|outT|}_-\cong
 &
     |A + A ><| A^{+}
-           \ar[d]^{|id + id >< split avg length |} 
-           \ar@@/^/[l]^-{|inT|}    
+           \ar[d]^{|id + id >< split avg length |}
+           \ar@@/^/[l]^-{|inT|}
 \\
      |A|
 &
@@ -1364,13 +1446,13 @@ Solução para listas não vazias:
 }
 &
 \xymatrix@@C=2cm{
-    A^{+} 
-           \ar[d]_-{length}      
+    |A|^{+}
+           \ar[d]_-{length}
            \ar@@/^/[r]^-{|outT|}_-\cong
 &
     |A + A ><| A^{+}
-           \ar[d]^{|id + id >< split avg length |} 
-           \ar@@/^/[l]^-{|inT|}    
+           \ar[d]^{|id + id >< split avg length |}
+           \ar@@/^/[l]^-{|inT|}
 \\
      |Nat0|
 &
@@ -1383,9 +1465,6 @@ Solução para listas não vazias:
 avg = p1.avg_aux
 \end{code}
 
-
-
-
 \begin{code}
 recL f = id -|- id >< f
 
@@ -1397,7 +1476,6 @@ inL = either singl cons
 cataL g = g . recL (cataL g) . outL
 
 avg_aux = cataL $ either b q
-
   where
     b = split id (const 1)
     q = split f (succ . p2 . p2)
@@ -1407,13 +1485,13 @@ Solução para árvores de tipo \LTree:
 
 \begin{eqnarray*}
 \xymatrix@@C=2cm{
-    LTree A 
-           \ar[d]_-{|avg|}      
+    |LTree A|
+           \ar[d]_-{|avg|}
            \ar@@/^/[r]^-{|outT|}_-\cong
 &
-    |A +| (LTree A)^{2}  
-           \ar[d]^{|id + (split avg length)|^{2}} 
-           \ar@@/^/[l]^-{|inT|}    
+    |A + (LTree A|)^{2}
+           \ar[d]^{|id + (split avg length)|^{2}}
+           \ar@@/^/[l]^-{|inT|}
 \\
      |A|
 &
@@ -1422,13 +1500,13 @@ Solução para árvores de tipo \LTree:
 }
 &
 \xymatrix@@C=2cm{
-    LTree A 
-           \ar[d]_-{length}      
+    |LTree A|
+           \ar[d]_-{length}
            \ar@@/^/[r]^-{|outT|}_-\cong
 &
-    |A +| (LTree A)^{2}
-           \ar[d]^{|id + (split avg length)|^{2}} 
-           \ar@@/^/[l]^-{|inT|}    
+    |A + (LTree A|)^{2}
+           \ar[d]^{|id + (split avg length)|^{2}}
+           \ar@@/^/[l]^-{|inT|}
 \\
      |Nat0|
 &
@@ -1448,7 +1526,142 @@ avgLTree = p1.cataLTree gene where
 \subsection*{Problema 5}
 Inserir em baixo o código \Fsharp\ desenvolvido, entre \verb!\begin{verbatim}! e \verb!\end{verbatim}!:
 
+\subsubsection*{Datatype definition}
 \begin{verbatim}
+type BTree<'a> =
+  | Empty
+  | Node of 'a * (BTree<'a> * BTree<'a>)
+
+let inBTree x = either (konst Empty) Node x
+
+let outBTree x =
+  match x with
+    | Empty -> i1 ()
+    | Node (a, (l, r)) -> i2 (a, (l, r))
+\end{verbatim}
+
+\subsubsection*{Ana + cata + hylo}
+\begin{verbatim}
+let baseBTree f g = id -|- (f >< (g >< g))
+
+let recBTree g = baseBTree id g
+
+let rec cataBTree g = g << (recBTree (cataBTree g)) << outBTree
+
+let rec anaBTree g = inBTree << (recBTree (anaBTree g) ) << g
+
+let hyloBTree f g = cataBTree f << anaBTree g
+\end{verbatim}
+
+\subsubsection*{Map}
+\begin{verbatim}
+let fmap f = cataBTree (inBTree << baseBTree f id)
+\end{verbatim}
+
+\subsubsection*{Examples}
+
+\paragraph*{Inversion (mirror)}
+\begin{verbatim}
+let invBTree x = cataBTree (inBTree << (id -|- (id >< swap))) x
+\end{verbatim}
+
+\paragraph*{Counting}
+\begin{verbatim}
+let countBTree x = cataBTree (either (konst 0) (succ << (uncurry (+)) << p2)) x
+\end{verbatim}
+
+\paragraph*{Serilization}
+
+\subparagraph*{in-order traversal}
+\begin{verbatim}
+let inord x =
+  let join (a, (l, r)) = l @ a::r
+  in either nil join x
+
+let inordt x = cataBTree inord x
+\end{verbatim}
+
+\subparagraph*{pre-order traversal}
+\begin{verbatim}
+let preord x =
+  let join (a, (l, r)) = a::l @ r
+  in either nil join x
+
+let preordt x = cataBTree preord x
+\end{verbatim}
+
+\subparagraph*{post-order traversal}
+\begin{verbatim}
+let postord x =
+  let join (a, (l, r)) = l @ r @ [a]
+  in either nil join x
+
+let postordt x = cataBTree postord x
+\end{verbatim}
+
+\paragraph*{Quicksort}
+\begin{verbatim}
+let rec part p l =
+  match l with
+    | [] -> ([], [])
+    | (h::t) ->
+      let (s, l) = part p t
+      in
+        if p h then
+          (h::s, l)
+        else
+          (s, h::l)
+
+let qsep l =
+  match l with
+    | [] -> i1 ()
+    | (h :: t) ->
+      let (s, l) = part ((<) h) t
+      in i2 (h, (s, l))
+
+let qSort x = hyloBTree inord qsep x
+\end{verbatim}
+
+\paragraph*{Traces}
+\begin{verbatim}
+let rec delete x y =
+  match y with
+    | [] -> []
+    | (h::t) ->
+      if x = h then t
+      else h :: delete x t
+
+let union x y = x @ List.fold (flip delete) (List.distinct y) x
+
+let tunion (a, (l, r)) = union (List.map ((@) [a]) l) (List.map ((@) [a]) r)
+
+let traces x = cataBTree (either (konst [[]]) tunion) x
+\end{verbatim}
+
+\paragraph*{Towers of Hanoi}
+\begin{verbatim}
+let present x = inord x
+
+let strategy (d, n) =
+  match n with
+    | 0 -> i1 ()
+    | otherwise -> i2 ((n, d), ((not d, n), (not d, n)))
+
+let hanoi x = hyloBTree present strategy x
+\end{verbatim}
+
+\subsubsection*{Depth and balancing (using mutual recursion)}
+\begin{verbatim}
+let baldepth x =
+  let f ((b1, d1), (b2, d2)) = ((b1, b2), (d1, d2))
+  let h (a, ((b1, b2), (d1, d2))) =
+      (b1 && b2 && abs (d1 - d2) <= 1, 1 + max d1 d2)
+  let g x = either (konst (true, 1)) (h << (id >< f)) x
+  in cataBTree g x
+
+let balBTree b = (p1 << baldepth) b
+
+let depthBTree b = (p2 << baldepth) b
 \end{verbatim}
 
 %----------------- Fim do anexo com soluções dos alunos ------------------------%
