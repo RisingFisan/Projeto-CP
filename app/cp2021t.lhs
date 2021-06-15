@@ -1158,17 +1158,18 @@ g_eval_exp x = either (const x) (either id (either (uncurry binOp) (uncurry unOp
 \xymatrix@@C=2cm{
    |ExpAr A|
           \ar[d]_-{\ana{clean}}
+          \ar@@/_5pc/[dd]_-{\llbracket |gopt a, clean| \rrbracket}
            \ar[r]^-{|clean|}
 &
-   | + ( A + (BinOp >< (ExpAr A)|^2| + UnOp >< ExpAr A))|
+   |1 + ( A + (BinOp >< (ExpAr A)|^2| + UnOp >< ExpAr A))|
           \ar[d]^{|id + (id + (id >< |\ana{|clean|}^2| + |\ana{|id >< clean|})}
 \\
     |ExpAr A|
           \ar[d]_-{|cata (gopt a)|}
-           \ar[r]^-{|inExpAr|}
+           \ar@@/^/[r]^-{|outT|}_-\cong
 &
    |1 + (A + (BinOp >< (ExpAr A)|^2| + UnOp >< ExpAr A))|
-          \ar[l]^-{|outExpAr|}
+          \ar@@/^/[l]^-{|inT|}
           \ar[d]^{|id + (id + (id >< (cata (gopt a))|^2| + id >< cata (gopt a))|}
 \\
     |A|
@@ -1178,9 +1179,7 @@ g_eval_exp x = either (const x) (either id (either (uncurry binOp) (uncurry unOp
 }
 \end{eqnarray*}
 
-% TODO: Qual é a vantagem de implementar a função optimize eval utilizando um hilomorfismo
-% em vez de utilizar um catamorfismo com um gene ”inteligente”?
-
+A vantagem de usarmos um hilomorfismo é que assim podemos optimizar a expressão antes e depois de substituir a variável.\\
 \textbf{NB}: Esta função não passa nalguns testes do |quickCheck|, uma vez que a |eval_exp| nalguns casos dá |NaN|,
 enquanto que a |optmize_eval| não.
 
@@ -1400,6 +1399,31 @@ Se este elemento for uma folha, visto que não tem ramos, o catamorfismo devolve
 
 Temos assim uma definição para o hilomorfismo, apresentada a seguir:
 
+\begin{eqnarray*}
+\xymatrix@@C=2cm{
+   |[NPoint]|
+          \ar[d]_-{\ana{coalg}}
+          \ar@@/_5pc/[dd]_-{\llbracket |alg, coalg| \rrbracket}
+           \ar[r]^-{|coalg|}
+&
+   |NPoint + [NPoint]|^2
+          \ar[d]^{|id + |\ana{coalg}^2}
+\\
+    |LTree NPoint|
+          \ar[d]_-{|cata alg|}
+           \ar@@/^/[r]^-{|outT|}_-\cong
+&
+   |NPoint + (LTree NPoint)|^2
+          \ar@@/^/[l]^-{|inT|}
+          \ar[d]^{|id + (cata alg)|^2}
+\\
+    |OverTime NPoint|
+&
+   |NPoint + (OverTime NPoint)|^2
+          \ar[l]^-{|alg|}
+}
+\end{eqnarray*}
+
 \begin{code}
 deCasteljau :: [NPoint] -> OverTime NPoint
 deCasteljau [] = const []
@@ -1413,11 +1437,10 @@ hyloAlgForm = hyloLTree
 \end{code}
 
 \subsection*{Problema 4}
-Tendo que | cata (either b q) = split avg length |, geram-se os diagramas
-de $ avg $ e de $ split $ para se poder recorrer à recursividade mútua.
-\\
-\\
-Solução para listas não vazias:
+\subsubsection*{Solução para listas não vazias:}
+
+Sabendo que | cata (either b q) = split avg length |, geram-se os diagramas
+de $ avg $ e de $ length $ para se poder recorrer à recursividade mútua.
 
 \begin{eqnarray*}
 \start
@@ -1484,7 +1507,7 @@ avg_aux = cataL $ either b q
     q = split f (succ . p2 . p2)
     f (a, (avg, k)) = (a + k * avg) / (k + 1)
 \end{code}
-Solução para árvores de tipo \LTree:
+\subsubsection*{Solução para árvores de tipo \LTree:}
 
 \begin{eqnarray*}
 \xymatrix@@C=2cm{
