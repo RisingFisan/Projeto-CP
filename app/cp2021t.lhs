@@ -1423,7 +1423,7 @@ Temos assim uma definição para o hilomorfismo, apresentada a seguir:
           \ar[l]^-{|alg|}
 }
 \end{eqnarray*}
-
+\newpage
 \begin{code}
 deCasteljau :: [NPoint] -> OverTime NPoint
 deCasteljau [] = const []
@@ -1500,7 +1500,9 @@ outL (a:l) = i2 (a, l)
 inL = either singl cons
 
 cataL g = g . recL (cataL g) . outL
+\end{code}
 
+\begin{code}
 avg_aux = cataL $ either b q
   where
     b = split id (const 1)
