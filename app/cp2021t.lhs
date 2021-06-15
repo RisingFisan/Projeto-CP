@@ -1299,7 +1299,7 @@ calcLine = cataList h where
 \end{code}
 
 Pela análise da definição do algoritmo de \textit{De Casteljau} fornecida, vemos que esta divide a lista que lhe é dada nos seus elementos constituintes,
-fazendo depois \textit{merge} destes elementos usando a função \texttt{calcLine}. Podemos assim concluir que o hilomorfismo a definir terá
+fazendo depois uma junção (\textit{"merge"}) destes elementos usando a função \texttt{calcLine}. Podemos assim concluir que o hilomorfismo a definir terá
 como estrutura intermédia uma LTree, onde cada folha representa um NPoint, obtido após N divisões da lista inicial. É fácil de verificar que este
 algoritmo é bastante semelhante ao conhecido \textit{merge sort}, cujo hilomorfismo também usa uma LTree como estrutura intermédia.
 
@@ -1307,8 +1307,9 @@ Assim, o anamorfismo \texttt{coalg} deverá formar uma LTree a partir da lista d
 o algoritmo, ou seja, "enviando" para o ramo esquerdo a lista sem o último valor e para o ramo direito a lista sem o primeiro valor. Se a lista apenas tiver um valor,
 criamos uma folha com esse valor.
 
-Por outro lado, o catamorfismo \texttt{alg} deverá, para cada elemento da LTree, juntar os seus dois ramos. Se o elemento for uma folha, devolve-a envolvida
-num \texttt{const}, já que o catamorfismo deve devolver algo do tipo \texttt{OverTime NPoint}, e um NPoint não se altera com o tempo, logo vai ser constante.
+Por outro lado, o catamorfismo \texttt{alg} deverá, para cada elemento da LTree, juntar os seus dois ramos usando a função \texttt{calcLine} que definimos acima.
+Se este elemento for uma folha, visto que não tem ramos, o catamorfismo devolve-a envolvida num \texttt{const}, já que deve devolver algo do tipo 
+\texttt{OverTime NPoint} e um único NPoint (o valor armazenado na folha) não irá sofrer alterações com o tempo, logo terá que ser constante.
 
 Temos assim uma definição para o hilomorfismo, apresentada a seguir:
 
